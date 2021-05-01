@@ -1,0 +1,313 @@
+---
+title: Analyse Séquentielle Sociale
+author: Ayao Nomenyo
+date: "2021-04-30"
+slug: analyse-sequentielle-sociale
+categories:
+  - R
+  - TraMineR
+  - Sequences
+  - Sociale 
+tags:
+  - R
+  - TraMineR
+  - Sequences
+subtitle: ''
+summary: 'Analyse Séquentielle des parcours de vie Sous R avec le packge TraMineR'
+authors: []
+lastmod: '2020-12-31T14:43:31Z'
+featured: no
+image:
+  caption: ''
+  focal_point: ''
+  preview_only: no
+projects: []
+reading_time: true  # Show estimated reading time?
+share: true  # Show social sharing links? :: https://wowchemy.com/docs/managing-content/
+profile: true  # Show author profile?
+commentable: true  # Allow visitors to comment? Supported by the Page, Post, and Docs content types.
+editable: false  # Allow visitors to edit the page? Supported by the Page, Post, and Docs content types.
+bibliography: references.bib
+csl: communications-in-mathematics-and-statistics.csl
+links:
+ - name: "Analyse Sequentielle Sociale"
+   url: https://github.com/Ayao12/Sequential-analysis
+   icon_pack: fab
+   icon: github
+output: hugodown::md_document
+
+nocite: |
+  @item1, @item2
+link-citations: yes
+linkcolor: blue
+---
+
+<script src="{{< blogdown/postref >}}index.en_files/header-attrs/header-attrs.js"></script>
+
+
+<div id="chargement-des-packages" class="section level2">
+<h2>Chargement des packages</h2>
+<pre class="r"><code>library(tidyverse)
+library(kableExtra)
+library(TraMineR)
+library(TraMineRextras)
+library(cluster)
+library(WeightedCluster)
+library(seqhandbook)</code></pre>
+</div>
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>Les enquêtes socio-démographiques permettent de collecter des informations permettant de retracer le
+parcours des individus, en considérant le parcours d’un individu comme une séquence(une suite d’états ou d’événements dans un espace fini de modalités). Ainsi, on pourra étudier les trajectoires des individus en définissant l’appartenance de chaque individu à chaque âge à un état (étude, formation universitaire, formation continue, emploi, chômage …) et de répondre à des questions telles que:</p>
+<ul>
+<li>Les parcours de vie obéissent-ils à une norme sociale?
+<ul>
+<li>Quelles sont les types de trajectoires standards?</li>
+<li>Quels écarts observe-t-on par rapport à ces normes?</li>
+</ul></li>
+<li>Pourquoi certaines personnes suivent-elles des trajectoires plus
+chaotiques que d’autres?</li>
+<li>Comment les trajectoires de vie sont-elles liées au sexe, à
+l’origine sociale et à d’autres facteurs?</li>
+<li>Existe-t-il des règles séquentielles entre les états?</li>
+</ul>
+<p>Dans ce tutoriel, nous allons voir un exemple d’analyse séquentielle avec le packages <a href="http://traminer.unige.ch/">TraMineR</a> disponible sous <a href="https://www.r-project.org/">R</a>. Ce package propose un certain nombre de graphiques permettant de visualiser les trajectoires les plus fréquentes ou hétérogènes ; utilisations de divers méthodes notamment <strong>optimal matching</strong> <span class="citation">[<a href="#ref-robette2008analyse" role="doc-biblioref">1</a>]</span> pour une classification afin de regrouper des trajectoires en classes.</p>
+</div>
+<div id="description-des-données" class="section level2">
+<h2>Description des données</h2>
+<p>Les données utilisées dans ce tutoriel sont celles associées au packages et proviennent d’une enquête de <a href="https://rss.onlinelibrary.wiley.com/doi/abs/10.1111/1467-985X.00641">McVicar et Anyadike-Danes (2002)</a> auprès de 712 jeunes irlandais sur la transition entre formation et emploi entre septembre 1993 et juin 1999. Les séquences représentent leur suivi pendant les 6 années suivant la fin de la scolarité obligatoire (16 ans) et sont constituées de 70 variables indiquant les états mensuels successifs de chaque individu.</p>
+<p>Les états sont :</p>
+<ul>
+<li>EM : en emploi</li>
+<li>FE : formation continue</li>
+<li>HE : formation supérieure</li>
+<li>JL : au chômage ou inactivité</li>
+<li>SC : Ecole</li>
+<li>TR : en stage ou apprentissage.</li>
+</ul>
+<p>Les données contiennent également d’autres variables catégorielles comme :</p>
+<ul>
+<li>id : numéro d’identification</li>
+<li>male : le sexe</li>
+<li>catholic : catholique ou non</li>
+<li>Belfast, N.Eastern, Southern, S.Eastern, Western : emplacement de l’ école.</li>
+<li>funemp : situation professionnelle du père au moment de l’enquête, 1 = père au chômage</li>
+<li>livboth : conditions de vie au moment du premier balayage de l’enquête (juin 1995), 1 = vivant avec les deux parents.</li>
+</ul>
+</div>
+<div id="chargement-et-préparation-des-données" class="section level2">
+<h2>Chargement et préparation des données</h2>
+<p>Nous commençons par charger les données <strong>mvad</strong>, on vérifie les états disponibles et ensuite, nous créons un objet de séquence d’états auquel nous attribuons, pour une utilisation ultérieure, des noms d’état courts pour la sortie imprimée et des étiquettes d’état longues pour la légende dans les graphiques.</p>
+<pre class="r"><code>data(mvad)
+seqstatl(mvad[, 17:86])</code></pre>
+<pre><code>## [1] &quot;employment&quot;  &quot;FE&quot;          &quot;HE&quot;          &quot;joblessness&quot; &quot;school&quot;     
+## [6] &quot;training&quot;</code></pre>
+<pre class="r"><code>mvad.scodes &lt;- c(&quot;EM&quot;, &quot;FE&quot;, &quot;HE&quot;, &quot;JL&quot;, &quot;SC&quot;, &quot;TR&quot;)
+mvad.labs &lt;- c(&quot;emploi&quot;, &quot;formation continue&quot;, &quot;formation supérieure&quot;, &quot;inactivité&quot;, &quot;Ecole&quot;, &quot;stage&quot;)
+mvad.seq &lt;- seqdef(mvad, 17:86, states = mvad.scodes, labels = mvad.labs, xtstep = 6)</code></pre>
+<p>Déterminons le nombre de séquences distinctes dans notre corpus.</p>
+<pre class="r"><code>seqtab(mvad.seq, idxs = 0) %&gt;% nrow</code></pre>
+<pre><code>## [1] 490</code></pre>
+<p>Notre corpus de 712 séquences comporte 490 séquences distinctes, il est donc important d’utiliser une procédure statistique pour regrouper les séquences qui se ressemblent afin de faciliter l’analyse.</p>
+<pre class="r"><code># Le chronogramme
+seqdplot(mvad.seq, cex.legend = 1.5)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-5-1.png" width="1440" style="display: block; margin: auto;" /></p>
+<p>Le chronogramme (state distribution plot) de l’ensemble des séquences fait apparaître la prépondérance de l’emploi et le poids non négligeable de l’inactivité et de la formation supérieure.</p>
+</div>
+<div id="appariement-optimal-et-classification" class="section level2">
+<h2>Appariement optimal et classification</h2>
+<p>Calculons la dissimilarités entre les paires de séquences afin de pouvoir comparer les séquences. Notons qu’il exite plusieurs méthodes, mais ici nous optons pour la méthode la plus répandue qui est celle de <strong>l’appariement optimal (optimal matching en anglais)</strong>. Pour plus de détails sur le choix des méthodes du calcul de la dissimilarités, veuillez consulter <span class="citation">[<a href="#ref-Studer2016" role="doc-biblioref">2</a>]</span>. La méthode d’appariement optimal repose sur le nombre
+minimal de modifications <strong>(substitutions, suppressions, insertions)</strong> nécessaire pour obtenir une paire de séquences semblable. On peut considérer que chaque modification est équivalente, mais il est aussi possible de prendre en compte le fait que les <strong>distances</strong> entre les différents états n’ont pas toutes la même «valeur» (par exemple, on peut supposer logiquement que la distance sociale entre école et emploi est plus grande que la distance entre stage et emploi), en assignant aux différentes modifications des « coûts » distincts.</p>
+<p>Dans notre cas, nous allons Calculer des dissimilarités <strong>OM</strong> avec la fonction <code>seqdist</code> entre paires de séquences avec un coût d’indel (insertions, suppressions) de 1 et des coûts de substitutions constats et égaux à 2.</p>
+<pre class="r"><code>couts &lt;- seqsubm(mvad.seq, method = &quot;CONSTANT&quot;, cval = 2)
+mvad.dist &lt;- seqdist(mvad.seq, method = &quot;OM&quot;, indel = 1, sm = couts)</code></pre>
+<p>La matrice des distances étant calculée, regroupons les séquences en <strong>classes</strong> en fonction de leur proximité par une classification ascendante hiérarchique (CAH) avec la fonction <code>agnes</code> du package <code>cluster</code>.</p>
+<pre class="r"><code>mvad.class &lt;- agnes(as.dist(mvad.dist), method = &quot;ward&quot;, keep.diss = FALSE)</code></pre>
+<p>Commençons par explorer le dendrogrammme de notre CAH pour le choix du nombre de classe.</p>
+<pre class="r"><code>plot(as.dendrogram(mvad.class) , leaflab = &quot;none&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-8-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p>Le dendrogramme suggère une solution à 2, 4, 6 … classes. Le graphique suivant permet de représenter le tapis de l’ensemble des séquences selon l’ordre du dendrogramme.</p>
+<pre class="r"><code>seq_heatmap(mvad.seq, mvad.class)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-9-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p>Examinons les sauts d’inertie qui peuvent être utile pour la détermination du nombre de classes.</p>
+<pre class="r"><code>plot(sort(mvad.class$height, decreasing = TRUE)[1:15], type=&quot;s&quot;, xlab=&quot;nombre de classes&quot;, ylab = &quot;inertie&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-10-1.png" width="672" style="display: block; margin: auto;" />
+On voit par exemple qu’il y a une différence d’inertie notable entre les partitions en 5 et 6 classes.</p>
+<p>Pour le choix d’une partition, il existe aussi un certain nombre d’indicateurs de qualité des partitions : PBC (Point Biserial Correlation), HG (Hubert’s Gamma), HGSD (Hubert’s Somers D), ASW (Average Silhouette Width), etc… Veuillez consulter <span class="citation">[<a href="#ref-Studer2013" role="doc-biblioref">3</a>]</span> pour les détails sur les indicateurs. Pour calculer ces indicateurs, on utilise la fonction <code>as.clustrange</code> du package <code>WeightedCluster</code>. L’argument <code>max.rank</code> spécifie le nombre de partitions à afficher par indicateur.</p>
+<pre class="r"><code>mvad.meas &lt;- as.clustrange(mvad.class, diss = mvad.dist)
+summary(mvad.meas, max.rank = 2)</code></pre>
+<pre><code>##      1. N groups     1.  stat 2. N groups    2.  stat
+## PBC            5   0.66651242           6   0.6634702
+## HG            15   0.93480644          14   0.9306607
+## HGSD          15   0.93181610          14   0.9276032
+## ASW            2   0.44659598           6   0.3979976
+## ASWw           2   0.44801622           6   0.4028625
+## CH             2 233.90963533           3 190.7425626
+## R2            20   0.71651673          19   0.7119099
+## CHsq           2 481.43473169           6 442.9024898
+## R2sq          20   0.89524035          19   0.8914187
+## HC            15   0.04732268          14   0.0494128</code></pre>
+<p>Il est souvent utile d’observer l’évolution des ces mesures pour identifier les partitions qui offrent
+le meilleur compris entre plusieurs identificateurs. La fonction plot associée à l’objet retourné par
+<code>as.clustrange</code> représente graphiquement cette évolution.</p>
+<pre class="r"><code>plot(mvad.meas, stat=c(&quot;ASWw&quot;, &quot;HG&quot;, &quot;PBC&quot;), norm=&quot;zscore&quot;)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-12-1.png" width="672" style="display: block; margin: auto;" />
+La solution en six groupes est ici un maximum local pour les mesures “ASWw,”
+“PBC” et “HG.” On opte finalement pour une solution en six classes. On coupe donc l’arbre de la CAH à l’aide de la fonction <code>cutree</code>.</p>
+<pre class="r"><code>nbcl &lt;- 6
+mvad.cut &lt;- cutree(mvad.class, nbcl)
+mvad.cut &lt;- factor(mvad.cut, labels = paste(&quot;classe&quot;, 1:nbcl, sep = &quot; &quot;))</code></pre>
+</div>
+<div id="représentations-graphiques" class="section level2">
+<h2>Représentations graphiques</h2>
+<p>Les représentations graphiques permettent de se faire une première idée sur la nature des classes de la typologie. Le type de graphique le plus utilisé est le chronogramme (state distribution plot) présentant une série de coupes transversales. Ce graphique s’obtient avec <code>seqdplot</code>:</p>
+<pre class="r"><code>seqdplot(mvad.seq, group = mvad.cut, border = TRUE, cex.legend = 2)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-14-1.png" width="1440" style="display: block; margin: auto;" /></p>
+<p>On remarque que les classes semblent caractérisées par des groupes d’états bien identifiés : emploi pour la classe 1, une formation supérieur après une formation continue pour la classe 2, emploi après une formation continue pour la classe 3. stage pour la classe 4, formation supérieur après école pour la classe 5 et chômage pour la classe 6.</p>
+<p>Les index plots (ou “tapis”) sont également très utiles permettant de mieux visualiser la dimension individuelle des séquences. Chaque segment horizontal représente une séquence, découpée en sous-segments correspondant aux différents états successifs qui composent la séquence.</p>
+<!-- ```{r fig.align="center", fig.height=13, fig.width=15} -->
+<!-- seqIplot(mvad.seq, group = mvad.cut, xtlab = 14:50, space = 0, -->
+<!--          border = NA, yaxis = FALSE, cex.legend = 2) -->
+<!-- ``` -->
+<pre class="r"><code>ordre &lt;- cmdscale(as.dist(mvad.dist), k = 1)
+seqiplot(mvad.seq, group = mvad.cut, sortv = ordre, idxs = 0, space = 0,
+         border = NA, with.legend = T, yaxis = FALSE, cex.legend = 2)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-15-1.png" width="1440" style="display: block; margin: auto;" /></p>
+<p>L’hétérogénéité de certaines classes se fait distinguée. Par exemple, les classes 1, 6 semblent regrouper des carrières relativement stables (respectivement employés et chômeurs) et des classes mobiles, par exemple les classes 2, 3 regroupent les individus qui ont commencé avec une formation continue et poursuivre respectivement avec une formation supérieure et un emploi. De même, la classe 4 regroupe les individus qui ont trouvé un emploi après avoir finir leur stage.</p>
+<pre class="r"><code>aggregate(disscenter(as.dist(mvad.dist), group = mvad.cut), list(mvad.cut), mean)</code></pre>
+<pre><code>##    Group.1        x
+## 1 classe 1 20.60026
+## 2 classe 2 17.81985
+## 3 classe 3 22.19771
+## 4 classe 4 24.33591
+## 5 classe 5 12.27726
+## 6 classe 6 25.63430</code></pre>
+<p>Cela confirme que les classes 1, 6 sont les plus hétérogènes, alors que la classe 5 est la plus homogène.</p>
+<p>On peut visualiser les 10 séquences les plus fréquentes de chaque classe avec la fonction <code>seqfplot</code></p>
+<pre class="r"><code>seqfplot(mvad.seq, group = mvad.cut, with.legend = T, yaxis = FALSE, cex.legend = 2)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-17-1.png" width="1440" style="display: block; margin: auto;" /></p>
+<p>On peut aussi visualiser avec <code>seqmsplot</code> l’état modal (celui qui correspond au plus grand nombre de séquences de la classe).</p>
+<pre class="r"><code>seqmsplot(mvad.seq, group = mvad.cut, main = &quot;classe&quot;, cex.legend = 2)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-18-1.png" width="1440" style="display: block; margin: auto;" /></p>
+<p>On peut également représenter avec <code>seqmtplot</code> les durées moyennes passées dans les différents états.</p>
+<pre class="r"><code>seqmtplot(mvad.seq, group = mvad.cut, cex.legend = 2)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-19-1.png" width="1440" style="display: block; margin: auto;" /></p>
+<p>Il est également possible d’identifier des séquences représentatives de chaque classe.</p>
+<pre class="r"><code>seqrplot(mvad.seq, group = mvad.cut, dist.matrix = mvad.dist, criterion = &quot;dist&quot;, cex.legend = 2)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-20-1.png" width="1440" style="display: block; margin: auto;" /></p>
+<div id="lentropie-transervale" class="section level3">
+<h3>L’entropie transervale</h3>
+<p>L’entropie transversale décrit l’évolution de l’homogénéité de la classe. Pour un instant donné, une entropie proche de 0 signifie que tous les individus de la classe (ou presque) sont dans la même situation. A l’inverse, une entropie proche de 1 signifie des individus sont dispersés dans toutes les situations. Ce type de graphique est pratique pour localiser les moments de transition.</p>
+<pre class="r"><code>seqHtplot(mvad.seq, group = mvad.cut)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-21-1.png" width="1440" style="display: block; margin: auto;" /></p>
+<p><strong>Remarque</strong> : Les mêmes analyses sont possibles en considérant les variables catégorielles (male, funemp , livboth , etc.. ) à la place des classes précédemment formées. Prenons par exemple le cas de la variable <em>Male</em>:</p>
+<pre class="r"><code>seqdplot(mvad.seq, group = mvad$male, border = TRUE, cex.legend = 1.5)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-22-1.png" width="1440" style="display: block; margin: auto;" />
+Le chronogramme (state distribution plot) de l’ensemble des séquences au niveau des deux sexes fait apparaître la prépondérance de l’emploi mais un taux élevé chez les hommes plus que chez les femmes. Les femmes ont une tendance plus forte à faire une formation continue que les hommes.</p>
+<p>Visualisons les 10 séquences les plus fréquentes niveau de chaque sexe</p>
+<pre class="r"><code>seqfplot(mvad.seq, group = mvad$male, with.legend = T, yaxis = FALSE, cex.legend = 2)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-23-1.png" width="1440" style="display: block; margin: auto;" /></p>
+<p>Ce graphique confirme les observations précédentes, les hommes durent plus longtemps dans les emplois que les femmes.</p>
+<pre class="r"><code>seqmsplot(mvad.seq, group = mvad$male, main = &quot;classe&quot;, cex.legend = 2)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-24-1.png" width="1440" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>seqmtplot(mvad.seq, group = mvad$male, cex.legend = 2)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-25-1.png" width="1440" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>seqHtplot(mvad.seq, group = mvad$male)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-26-1.png" width="1440" style="display: block; margin: auto;" /></p>
+<p>On remarque avec les entropies transversales que durant la période d’étude que ce soit chez les femmes ou chez hommes, les individus sont presque dispersés dans tous les états (entropie pas proche de 0).</p>
+</div>
+</div>
+<div id="séquences-dévénements" class="section level2">
+<h2>Séquences d’événements</h2>
+<p>L’objectif ici est de considérer nos données comme une séquences d’événements et de déceler s’il y a :</p>
+<ul>
+<li>une configurations de types d’événements</li>
+<li>Relation avec covariables
+<ul>
+<li>Quelle configuration caractérise le mieux un groupe par rapport aux autres ?</li>
+<li>Différences typiques dans les classes dans l’ordonnancement des événements</li>
+</ul></li>
+</ul>
+<p>Tout d’abord, nous devons convertir notre objet d’état <code>mvad.seq</code> en séquence d’événements avec la fonction <code>seqecreate</code></p>
+<pre class="r"><code>mvad.seqe &lt;- seqecreate(mvad.seq, use.labels = FALSE)
+head(mvad.seqe)</code></pre>
+<pre><code>## [1] (EM)-4-(EM&gt;TR)-2-(TR&gt;EM)-64            
+## [2] (FE)-36-(FE&gt;HE)-34                     
+## [3] (TR)-24-(TR&gt;FE)-34-(FE&gt;EM)-10-(EM&gt;JL)-2
+## [4] (TR)-47-(TR&gt;EM)-14-(EM&gt;JL)-9           
+## [5] (FE)-25-(FE&gt;HE)-45                     
+## [6] (JL)-1-(JL&gt;TR)-33-(TR&gt;EM)-36</code></pre>
+<p>Comme nous pouvons le voir, l’objet <code>mvad.seqe</code> comprend des délais et des transitions.</p>
+<p>Nous commençons par rechercher des sous-séquences d’événements fréquentes. Une sous-séquence est formée par un sous-ensemble des événements et qui respecte l’ordre des événements dans l’ordre. Par exemple, (EM&gt;TR) -&gt; (EM) est une sous-séquence de (EM&gt;TR) -&gt; (TR&gt;HE) -&gt; (EM) puisque l’ordre des événements sont respectés. Une sous-séquence est appelée « fréquente » si elle se produit dans plus d’un nombre minimum donné de séquences. Cela exigeait un nombre minimum de séquences auxquelles la sous-séquence doit appartenir et appelé support minimum. Le support minimum doit être fixé et peut être défini en pourcentages avec l’argument <code>pMinSupport</code> et en nombre par l’argument <code>minSupport</code></p>
+<pre class="r"><code>fsubseq &lt;- seqefsub(mvad.seqe, pmin.support = 0.05)
+plot(fsubseq[1:15], col = &quot;cyan&quot;, ylab=&quot;Fréquence&quot;, xlab=&quot;Sous-séquences&quot;, cex=0.7)</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-28-1.png" width="672" /></p>
+<p>Cherchons les sous-séquences fréquentes liées au sexe. Notons que le pouvoir discriminant est évalué avec la <code>p-value</code> d’un test d’indépendance <code>Khi-deux</code>.</p>
+<pre class="r"><code>discr &lt;- seqecmpgroup(fsubseq, group = mvad$male)
+head(discr)</code></pre>
+<pre><code>##    Subsequence    Support      p.value statistic index    Freq.no   Freq.yes
+## 1         (SC) 0.25140449 0.0003881373 12.588453     4 0.31286550 0.19459459
+## 2      (TR&gt;EM) 0.25280899 0.0019363751  9.608891     3 0.19883041 0.30270270
+## 3      (EM&gt;FE) 0.05477528 0.0038514261  8.352568    27 0.08187135 0.02972973
+## 4 (TR)-(TR&gt;EM) 0.15870787 0.0046779765  7.999907     9 0.11695906 0.19729730
+## 5         (TR) 0.22191011 0.0093698881  6.750929     6 0.17836257 0.26216216
+## 6         (EM) 0.11657303 0.0153734703  5.873156    10 0.08479532 0.14594595
+##    Resid.no Resid.yes
+## 1  2.266868 -2.179407
+## 2 -1.985355  1.908756
+## 3  2.141051 -2.058444
+## 4 -1.938018  1.863245
+## 5 -1.709575  1.643616
+## 6 -1.721221  1.654813
+## 
+## Computed on 712 event sequences
+##    Constraint Value
+##  count.method  COBJ</code></pre>
+<pre class="r"><code>plot(discr[1:6])</code></pre>
+<p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-29-1.png" width="672" /></p>
+<div id="règles-dassociation-des-séquences" class="section level3">
+<h3>Règles d’association des séquences</h3>
+<pre class="r"><code>rules &lt;- TraMineR:::seqerules(fsubseq)
+rules[,1:4]</code></pre>
+<pre><code>##                 Rules Support      Conf      Lift
+## 1     (FE) =&gt; (FE&gt;EM)     163 0.5927273 2.0586430
+## 2     (TR) =&gt; (TR&gt;EM)     113 0.7151899 2.8289733
+## 3  (EM&gt;JL) =&gt; (JL&gt;EM)      73 0.5983607 3.2032540
+## 4     (SC) =&gt; (SC&gt;HE)      70 0.3910615 3.7626453
+## 5     (FE) =&gt; (FE&gt;JL)      52 0.1890909 1.9798930
+## 6     (FE) =&gt; (JL&gt;EM)      52 0.1890909 1.0122761
+## 7     (SC) =&gt; (SC&gt;EM)      50 0.2793296 3.5514765
+## 8  (JL&gt;EM) =&gt; (EM&gt;JL)      45 0.3383459 1.9746087
+## 9     (FE) =&gt; (FE&gt;HE)      43 0.1563636 2.0616835
+## 10    (TR) =&gt; (TR&gt;JL)      42 0.2658228 3.2078953
+## 11    (TR) =&gt; (JL&gt;EM)      38 0.2405063 1.2875226
+## 12    (FE) =&gt; (EM&gt;JL)      37 0.1345455 0.7852161
+## 13 (TR&gt;EM) =&gt; (EM&gt;JL)      37 0.2055556 1.1996357
+## 14    (FE) =&gt; (TR&gt;EM)      36 0.1309091 0.5178182</code></pre>
+<p>La fonction renvoie des règles d’association séquentielles. L’apprentissage des règles d’association utilise une valeur de support minimal comme paramètre principal.</p>
+<p>Nous obtenons des règles au format <code>si/alors</code> avec plusieurs statistiques. Par exemple, le premier
+<code>(FE) =&gt; (FE&gt;EM)</code> signifie: si un individu qui a suivi une <em>formation continue (FE)</em> est susceptible de trouver un <em>emploi (EM)</em>. Cette règle a 168 supports (c’est-à-dire qu’elle est appliquée en 163 séquences). La confiance 0.5927273 signifie que dans 59,27%, un individu qui a suivi une formation continue a trouvé un emploi.</p>
+</div>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>Ainsi, sommes arrivé à la fin de ce tutoriel destiné à l’analyse et visualisation séquentielle sociale.</p>
+<p>Pour écrire ce tutoriel, je me suis inspéré de l’article <a href="https://quanti.hypotheses.org/686">“L’analyse de séquences”</a> de Nicolas Robette.</p>
+<p>j’espère que ça permettra au plus grand nombre d’analyser et visualiser leur donnée de séquences.</p>
+<p>Si quelque chose vous freine ou vous pose problème dans les codes, indiquez le moi en commentaire, et j’essaierais de vous apporter une réponse.</p>
+<p>Si cet tutoriel vous a plu ou vous a été utile, n’oubliez pas de le partager !.</p>
+</div>
+<div id="references" class="section level2 unnumbered">
+<h2>References</h2>
+<div id="refs" class="references csl-bib-body">
+<div id="ref-robette2008analyse" class="csl-entry">
+<div class="csl-left-margin">1. </div><div class="csl-right-inline">Robette, N., Thibault, N.: Analyse harmonique qualitative ou méthodes d’appariement optimal? Population. 63, 621–646 (2008)</div>
+</div>
+<div id="ref-Studer2016" class="csl-entry">
+<div class="csl-left-margin">2. </div><div class="csl-right-inline">Studer, M., Ritschard, G.: <span class="nocase">What matters in differences between life trajectories: a comparative review of sequence dissimilarity measures</span>. Journal of the Royal Statistical Society, Series A. 179, 481–511 (2016). <a href="https://doi.org/10.1111/rssa.12125">https://doi.org/10.1111/rssa.12125</a></div>
+</div>
+<div id="ref-Studer2013" class="csl-entry">
+<div class="csl-left-margin">3. </div><div class="csl-right-inline">Studer, M.: <span class="nocase">WeightedCluster Library Manual: A practical guide to creating typologies of trajectories in the social sciences with R</span>. LIVES Working Papers 24 (2013)</div>
+</div>
+</div>
+</div>

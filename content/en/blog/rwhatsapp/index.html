@@ -1,0 +1,325 @@
+---
+title: Analyse des données Whatsapp
+author: Ayao Nomenyo
+date: '2020-12-20'
+slug: ["R"]
+categories: ["R","Visualisation", "Whatsapp"]
+tags: ["R", "Whatsapp", "Visualisation", "rwhatsapp"]
+subtitle: ''
+summary: 'Analyse et visualisation des données dans R avec le package rwhatsapp'
+authors: []
+lastmod: '2020-12-20'
+featured: yes
+image:
+  placement: 2
+  caption: ""
+  focal_point: "Center"
+  preview_only: yes
+  #alt_text: An optional description of the image for screen readers.
+reading_time: true  # Show estimated reading time?
+share: true  # Show social sharing links? :: https://wowchemy.com/docs/managing-content/
+profile: true  # Show author profile?
+commentable: true  # Allow visitors to comment? Supported by the Page, Post, and Docs content types.
+editable: false  # Allow visitors to edit the page? Supported by the Page, Post, and Docs content types.
+links:
+ - name: "Whatsapp Data Analaysis"
+   url: https://github.com/Ayao12/Whatsapp-Analysis
+   icon_pack: fab
+   icon: github
+output: hugodown::md_document
+---
+
+<script src="{{< blogdown/postref >}}index_files/header-attrs/header-attrs.js"></script>
+
+
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p><code>Whatsapp</code> est une application de messagerie instantanée et aussi un réseau social qui nous donne la simplicité de communiquer avec nos proches et amis, grâce à ses capacités de chat et d’échange en groupe. Ainsi, nous générons de tas de données par nos échanges. Comment visualiser et analyser ces données? Dans cet tutoriel, il est question de montrer comment nous pouvons visualiser et analyser nos données <strong>Whatsapp</strong> sous <strong>R</strong> avec le package <a href="https://cran.r-project.org/web/packages/rwhatsapp/">rwhatsapp</a>.</p>
+<p><img src="SN.gif" /><!-- --></p>
+<p>Les données utilisées dans cet article proviennent des conversations d’un groupe que nous avions créé à l’<a href="http://www.imsp-benin.com/">IMSP</a>.</p>
+</div>
+<div id="récupération-et-importation-des-données" class="section level2">
+<h2>Récupération et importation des données</h2>
+<p>WhatsApp dispose d’une fonction intégrée pour l’exportation de discussions. Il suffit d’entrer dans n’importe quel discussion que vous désirez analyser. Les conversations de groupe sont particulièrement intéressantes. Dans le cas où vous ne saviez pas comment exporter les données Whatsapp, suivez les étapes suivantes:</p>
+<ul>
+<li>Rentrez dans une discussion, appuyez sur les trois points dans le coin supérieur droit.</li>
+<li>Sélectionnez l’option <strong>Plus</strong>.</li>
+<li>Sélectionnez l’option <strong>Export discussion</strong></li>
+</ul>
+<p><img src="whap_etap.png" width="859" /></p>
+<pre class="r"><code>chat &lt;- rwa_read(&quot;Imspdata.txt&quot;, verbose = TRUE) %&gt;% 
+  filter(!is.na(author)) %&gt;% 
+  select(-source)</code></pre>
+<p>Puisque certains membres du groupe ne sont pas dans notre répertoire, à la place de leur nom, nous avons leur numéro de téléphone, ainsi pour garder l’anonymat des membres du groupe, nous avons opéré un Changement des noms pour tous les membres.</p>
+<pre class="r"><code>levels(chat$author) &lt;- paste(&quot;member&quot;, 1:length(unique(chat$author)), sep = &quot;_&quot;)</code></pre>
+</div>
+<div id="préparation-des-données." class="section level2">
+<h2>Préparation des données.</h2>
+<div id="regroupement-des-dates-en-saison." class="section level3">
+<h3>Regroupement des dates en saison.</h3>
+<p>Pour rendre l’analyse et la visualisation un peu plus intéressantes, nous avons regroupé en saison (hiver, printemps, Été, Automne) de mars 2019 à décembre 2020.</p>
+<pre class="r"><code>myChat &lt;- chat %&gt;%
+  mutate(day = date(time)) %&gt;%
+  mutate(
+    saison = case_when(
+      day &gt;= dmy(22032019) &amp; day &lt;= dmy(21062019) ~ &quot;Printemps 2019&quot;,
+      day &gt;= dmy(22062019) &amp; day &lt;= dmy(21092019) ~ &quot;Eté 2019&quot;,
+      day &gt;= dmy(22092019) &amp; day &lt;= dmy(21122019) ~ &quot;Automne 2019&quot;,
+      day &gt;= dmy(22122019) &amp; day &lt;= dmy(21032020) ~ &quot;Hiver 2019&quot;,
+      day &gt;= dmy(20032020) &amp; day &lt;= dmy(20062020) ~ &quot;Printemps 2020&quot;,
+      day &gt;= dmy(21062020) &amp; day &lt;= dmy(22092020) ~ &quot;Eté 2020&quot;,
+      day &gt;= dmy(22092020) &amp; day &lt;= dmy(21122020) ~ &quot;Automne 2020&quot;)) %&gt;%
+  mutate( saison = factor(saison)) %&gt;%
+  filter(!is.na(author))</code></pre>
+</div>
+</div>
+<div id="visualisation-et-analyse-des-données" class="section level2">
+<h2>Visualisation et analyse des données</h2>
+<div id="visualisation-de-la-fréquence-quotidienne-des-messages." class="section level3">
+<h3>Visualisation de la fréquence quotidienne des messages.</h3>
+<p>Notre première visualisation concerne la fréquence des messages par jour dans le groupe sur les différentes saisons.</p>
+<pre class="r"><code># Palette de couleurs
+paleta.saison &lt;- brewer.pal(7,&quot;Dark2&quot;)
+
+myChat %&gt;%
+  group_by(saison) %&gt;%
+  count(day) %&gt;%
+  ggplot(aes(x = day, y = n, fill=saison)) +
+  geom_bar(stat = &quot;identity&quot;) +
+  scale_fill_manual(values=paleta.saison) +
+  ylab(&quot;Nombre de messages&quot;) + xlab(&quot;Date&quot;) +
+  labs(title = &quot;Nombre de messages par jour&quot;,
+       subtitle = &quot;Fréquence par saison&quot;) +
+  theme_minimal() +
+  theme( legend.title = element_blank(),
+         legend.position = &quot;bottom&quot;,
+         plot.title = element_text(hjust = 0.5, size = 20),
+         plot.subtitle = element_text(hjust = 0.5))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+<p>D’une façon générale, le groupe est toujours animé avec une faible animation en Été et Automne 2020. On dirait qu’un évènement s’est produit vers la fin de l’hiver 2019 et début Printemps 2020, caractérisée par une forte conversation.</p>
+</div>
+<div id="message-par-jour-de-la-semaine." class="section level3">
+<h3>Message par jour de la semaine.</h3>
+<p>Voyons la fréquence quotidienne des messages. Nous pouvons voir les jours de la semaines où il y a eu plus de discussion dans les saisons.</p>
+<pre class="r"><code>myChat %&gt;%
+  mutate( num_jsem = wday(day),
+          nom_jsem = weekdays(day)) %&gt;%
+  group_by(saison, num_jsem, nom_jsem) %&gt;%
+  count() %&gt;%
+  ggplot(aes(x = reorder(nom_jsem, -num_jsem), y = n, fill = saison)) +
+  geom_bar(stat = &quot;identity&quot;) +
+  scale_fill_manual(values = paleta.saison) +
+  ylab(&quot;&quot;) + xlab(&quot;&quot;) +
+  coord_flip() +
+  labs(title = &quot;Nombre de messages par jour de la semaine&quot;,
+       subtitle = &quot;Fréquence selon les saisons de l&#39;année&quot;) +
+  theme_minimal() +
+  theme( legend.title = element_blank(),
+         legend.position = &quot;bottom&quot;,
+         plot.title = element_text(hjust = 0.5, size = 20),
+         plot.subtitle = element_text(hjust = 0.5))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-8-1.png" width="672" />
+Il y a eu beaucoup de discussions les mardis surtout en printemps 2020 et Automne 2019. On notera aussi les lundis qui sont caractérisés aussi par une forte discussion principalement en Hiver 2019.</p>
+</div>
+<div id="message-par-heure-et-par-jour" class="section level3">
+<h3>Message par heure et par jour</h3>
+<p>On peut se poser la questions de savoir quelles sont les heures auxquelles il y a eu plus de discussions ?</p>
+<pre class="r"><code>jours_semaine &lt;- c(&quot;dimanche&quot;, &quot;lundi&quot;, &quot;mardi&quot;, &quot;mercredi&quot;, &quot;jeudi&quot;, &quot;vendredi&quot;, &quot;samedi&quot; )
+names(jours_semaine) &lt;- 1:7
+myChat %&gt;%
+  mutate( heure = hour(time),
+          num_jsem = wday(day),
+          nom_jsem = weekdays(day)) %&gt;%
+  count(saison, num_jsem, nom_jsem, heure) %&gt;%
+  ggplot(aes(x = heure, y = n, fill = saison)) +
+  geom_bar(stat = &quot;identity&quot;) +
+  scale_fill_manual(values = paleta.saison) +
+  ylab(&quot;Nombre de messages&quot;) + xlab(&quot;Horaire&quot;) +
+  labs(title = &quot;Nombre de messages par heure de la journée&quot;,
+       subtitle = &quot;Fréquence selon les saisons de l&#39;année&quot;) +
+  facet_wrap(~num_jsem, ncol=7, labeller = labeller(num_jsem = jours_semaine)) +
+  theme_minimal() +
+  theme( legend.title = element_blank(),
+         legend.position = &quot;bottom&quot;,
+         panel.spacing.x = unit(0.0, &quot;lines&quot;),
+         axis.text.x = element_text(size = 5),
+         plot.title = element_text(hjust = 0.5, size = 20),
+         plot.subtitle = element_text(hjust = 0.5))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-9-1.png" width="672" />
+La plus part des discussions ont eu lieu entre 14h à 21h les dimanches, lundis et mardis, entre 9h et 20 les autres jours.</p>
+</div>
+<div id="qui-a-envoyé-le-plus-de-messages" class="section level3">
+<h3>Qui a envoyé le plus de messages?</h3>
+<p>Voyons voir lesquels de nos utilisateurs ont montré une plus grande intention d’échange, en fonction du nombre de messages envoyés.</p>
+<pre class="r"><code>myChat %&gt;%
+  mutate(day = date(time)) %&gt;%
+  group_by(saison)%&gt;%
+  count(author) %&gt;%
+  slice_max(n, prop = 0.1)  %&gt;%
+  ggplot(aes(x = reorder(author, n), y = n, fill=saison)) +
+  geom_bar(stat = &quot;identity&quot;) +
+  scale_fill_manual(values=paleta.saison) +
+  ylab(&quot;Nombre total de messages&quot;) + xlab(&quot;Utilisateurs&quot;) +
+  coord_flip() +
+  labs(title = &quot;Nombre total de messages par utilisateur&quot;,
+       subtitle = &quot;Qui est le plus communicatif ? Fréquence par saison&quot;) +
+  theme_minimal() +
+  theme( legend.title = element_blank(),
+         legend.position = &quot;bottom&quot;,
+         plot.title = element_text(hjust = 0.5, size = 20),
+         plot.subtitle = element_text(hjust = 0.5))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-10-1.png" width="672" /></p>
+<p>On voit clairement que l’utilisateur etiqueté <em>member_13</em> a largement envoyé de plus de message que les autres.</p>
+</div>
+</div>
+<div id="quels-sont-les-emojis-les-plus-utilisés-dans-le-chat" class="section level2">
+<h2>Quels sont les emojis les plus utilisés dans le chat?</h2>
+<p>Emojis sont des symboles graphiques Unicode, qui sont actuellement utilisés comme abréviation pour exprimer des concepts et des idées, il ya des centaines d’emojis et le package <em>rwhatsapp</em> nous permet d’explorer la popularité dans les échanges de messages de toute sorte de conversation.</p>
+<pre class="r"><code>plotEmojis &lt;- myChat %&gt;%
+  unnest(c(emoji, emoji_name))  %&gt;%
+  mutate(emoji = str_sub(emoji, end = 1)) %&gt;%
+  count(emoji, emoji_name) %&gt;%
+  top_n(20, n) %&gt;%
+  arrange(desc(n)) %&gt;%
+  mutate( emoji_url = map_chr(emoji,
+                              ~paste0(&quot;https://abs.twimg.com/emoji/v2/72x72/&quot;,
+                                       as.hexmode(utf8ToInt(.x)),&quot;.png&quot;)))
+
+# graphe des emojis les plus utilisés
+plotEmojis %&gt;%
+  ggplot(aes(x = reorder(emoji_name, n), y = n)) +
+  geom_col(aes(fill = n), show.legend = FALSE, width = .2) +
+  geom_point(aes(color = n), show.legend = FALSE, size = 3) +
+  geom_image(aes(image = emoji_url), size = .045) +
+  scale_fill_gradient(low = &quot;blue&quot;,high = &quot;red&quot;) +
+  scale_color_gradient(low = &quot;#2b83ba&quot;,high = &quot;#d7191c&quot;) +
+  ylab(&quot;Nombre de fois où l&#39;emoji a été utilisé&quot;) +
+  xlab(&quot;Emoji et signification&quot;) +
+  labs(title = &quot;Emojis les plus généralement utilisés&quot;,
+       subtitle = &quot;Emojis les plus utilisés par tous&quot;) +
+  coord_flip() +
+  theme_minimal() +
+  theme( legend.title = element_blank(),
+         legend.position = &quot;bottom&quot;,
+         plot.title = element_text(hjust = 0.5, size = 20),
+         plot.subtitle = element_text(hjust = 0.5)) </code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-11-1.png" width="672" /></p>
+<p>Nous avons les 20 emojis les plus utilisés dans le groupe. Aujourd’hui, un emoji dit plus de mots. On conclura que nous avons un groupe whatsapp géneralement en gaiété.</p>
+</div>
+<div id="emojis-les-plus-utilisés-dans-les-chats-par-utilisateur" class="section level2">
+<h2>Emojis les plus utilisés dans les chats par utilisateur</h2>
+<p>Ici, nous voulons détecter les utilisateurs qui utilisent plus d’Emojis. Afin de rendre le graphique un peu plus clair, nous avons considéré les utilisateurs qui ont un nombre de message supérieur à la moyenne et leur 10 premiers emojis utilisés.</p>
+<pre class="r"><code>plotEmojis &lt;- myChat %&gt;%
+  group_by(author) %&gt;%
+  mutate(nb = n()) %&gt;%
+  ungroup() %&gt;%
+  filter(nb &gt;= (mean(nb))) %&gt;%
+  unnest(c(emoji, emoji_name)) %&gt;%
+  mutate( emoji = str_sub(emoji, end = 1)) %&gt;% 
+  count(author, emoji, emoji_name, sort = TRUE) %&gt;%
+  group_by(author) %&gt;%
+  top_n(n = 10, n) %&gt;%
+  slice(1:10) %&gt;%
+  mutate( emoji_url = map_chr(emoji,
+                              ~paste0(&quot;https://abs.twimg.com/emoji/v2/72x72/&quot;,
+                                      as.hexmode(utf8ToInt(.x)),&quot;.png&quot;)) )
+plotEmojis %&gt;%
+  ggplot(aes(x = reorder(emoji, -n), y = n)) +
+  geom_col(aes(fill = author, group = author), show.legend = FALSE, width = .20) +
+  geom_image(aes(image = emoji_url), size=.10) +
+  ylab(&quot;Nombre de fois où l&#39;emoji a été utilisé&quot;) +
+  xlab(&quot;Emoji&quot;) +
+  facet_wrap(~author, ncol = 5, scales = &quot;free&quot;) +
+  ggtitle(&quot;Emojis les plus utilisés dans la conversation, par utilisateur&quot;) +
+  theme_minimal() +
+  theme( legend.title = element_blank(),
+         legend.position = &quot;bottom&quot;,
+         axis.text.x=element_blank(),
+         plot.title = element_text(hjust = 0.5, size = 15),
+         plot.subtitle = element_text(hjust = 0.5))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-12-1.png" width="672" /></p>
+<p>On a donc 9 utilisateurs qui ont un nombre de discussions supérieur à la moyenne et ils prennent beaucoup de plaisir à écrire.</p>
+<div id="les-mots-les-plus-utilisés-dans-les-discussions" class="section level3">
+<h3>les mots les plus utilisés dans les discussions</h3>
+<p>Comme précédemment sur les Emojis, il est possible de faire une analyse sur la fréquence des mots les plus utilisés dans le groupe Whatsapp et par les membres du groupe. Pour rendre l’analyse plus simple, on utilisons le pakcage <a href="https://cran.r-project.org/web/packages/tidytext/vignettes/tidytext.html">tidytext</a> connu pour l’exploration des données textes. Avant de passer à la classification des mots, nous avons jugé bon de retirer les mots qui n’ont pas de signification pertinente, tels que les articles, si, bien, etc</p>
+<pre class="r"><code>remover_word &lt;- c(stopwords(language = &quot;fr&quot;), &quot;a&quot;, &quot;c&#39;est&quot;, &quot;cas&quot;, &quot;1&quot;, &quot;2&quot;,
+                  &quot;3&quot;, &quot;4&quot;, &quot;5&quot;, &quot;comme&quot;,&quot;où&quot;, &quot;car&quot;, &quot;https&quot;, &quot;the&quot;, &quot;fait&quot;, 
+                  &quot;dit&quot;, &quot;très&quot;, &quot;quelque chose&quot;, &quot;parce que&quot;, &quot;je pense&quot;,
+                  &quot;était&quot;,&quot;eux&quot;, &quot;très&quot;, &quot;peut&quot;, &quot;quand&quot;,  &quot;j&#39;ai&quot;, &quot;comme&quot;,
+                  &quot;faire&quot;,&quot;si&quot;, &quot;ça&quot;,&quot;déjà&quot;,&quot;omis&quot;, &quot;plus&quot;, &quot;quoi&quot;, &quot;tout&quot;,
+                  &quot;donc&quot;, &quot;va&quot;, &quot;où&quot;,&quot;parce que&quot;, &quot;tous&quot;, &quot;là&quot;, &quot;bien&quot;,
+                  &quot;oui&quot;,&quot;ni&quot;, &quot;médias&quot;, &quot;être&quot;,&quot;où&quot;, &quot;merci&quot;, &quot;qu&#39;il&quot;, &quot;non&quot;,
+                  &quot;and&quot;, &quot;to&quot;, &quot;of&quot;, &quot;n&#39;est&quot;, &quot;d&#39;un&quot;, &quot;après&quot;, &quot;in&quot;,&quot;aussi&quot;,
+                  &quot;avant&quot;, &quot;avoir&quot;, &quot;autre&quot;, &quot;deux&quot;, &quot;fois&quot;, &quot;ceux&quot;,&quot;alors&quot;,
+                  &quot;encore&quot;, &quot;rien&quot;, &quot;nom&quot;)
+myChat %&gt;%
+  unnest_tokens(input = text, output = word) %&gt;%
+  filter(!word %in% remover_word) %&gt;%
+  count(word) %&gt;%
+  top_n(30, n) %&gt;%
+  arrange(desc(n)) %&gt;%
+  ggplot(aes(x = reorder(word,n), y = n, fill = n, color = n)) +
+  geom_col(show.legend = FALSE, width = 0.1) +
+  geom_point(show.legend = FALSE, size = 3) +
+  scale_fill_gradient(low = &quot;#2b83ba&quot;, high = &quot;#d7191c&quot;) +
+  scale_color_gradient(low = &quot;#2b83ba&quot;, high = &quot;#d7191c&quot;) +
+  labs(title = &quot;Mots les plus couramment utilisés dans les conversations&quot;) +
+  xlab(&quot;Mots&quot;) +
+  ylab(&quot;Nombre de fois que le mot a été utilisé&quot;) +
+  coord_flip() +
+  theme_minimal() +
+  theme( legend.title = element_blank(),
+         legend.position = &quot;bottom&quot;,
+         panel.spacing.x = unit(0.0, &quot;lines&quot;),
+         plot.title = element_text(hjust = 0.5, size = 15))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
+<ul>
+<li><p>L’année 2020 a été marquée par la pandémie <strong>coronavirus</strong>. Quoi de plus normal d’en parler entre étudiant.
+Ainsi sur notre plate-forme, on remarque l’utilisation des mots ou expressions comme : Covid, 19, 2020, virus.</p></li>
+<li><p>On notera aussi l’utilisation des mots comme : toutes, félicitations… qui se réfère forcement aux périodes des soutenances de mémoire.</p></li>
+</ul>
+</div>
+<div id="nombre-de-mots-par-utilisateur" class="section level3">
+<h3>Nombre de mots par utilisateur</h3>
+<p>Maintenant, jetons un coup d’œil sur la fréquence des mots utilisés par quelques membres du groupe. Une fois encore pour rendre le graphique simple, nous avons considéré que les membres qui ont un nombre messagerie supérieur la moyenne et les dix premiers mots les plus fréquents chez eux.</p>
+<pre class="r"><code>myChat %&gt;%
+  group_by(author) %&gt;%
+  mutate(nb = n()) %&gt;%
+  ungroup() %&gt;%
+  filter(nb &gt;= (mean(nb))) %&gt;%
+  unnest_tokens(input = text,
+                output = word) %&gt;%
+  filter(!word %in% remover_word) %&gt;%
+  count(author, word, sort = TRUE) %&gt;%
+  
+  # Les 10 mots les plus utilisés par l&#39;utilisateur
+  group_by(author) %&gt;%
+  top_n(n = 10, n) %&gt;%
+  slice(1:10) %&gt;%
+  ungroup() %&gt;%
+  arrange(author, desc(n)) %&gt;%
+  mutate(order = row_number()) %&gt;%
+  ggplot(aes(x = reorder(word, n), y = n, fill = author, color = author)) +
+  geom_col(show.legend = FALSE, width = .1) +
+  geom_point(show.legend = FALSE, size = 3) +
+  xlab(&quot;Mots&quot;) +
+  ylab(&quot;Nombre de fois que le mot a été utilisé&quot;) +
+  coord_flip() +
+  facet_wrap(~author, ncol = 3, scales = &quot;free&quot;) +
+  ggtitle(&quot;Mots les plus utilisés par utilisateur dans les conversations&quot;) +
+  theme_minimal() +
+  theme( legend.title = element_blank(),
+         legend.position = &quot;bottom&quot;,
+         panel.spacing.x = unit(0.0, &quot;lines&quot;),
+         plot.title = element_text(hjust = 0.5, size = 15))</code></pre>
+<p><img src="{{< blogdown/postref >}}index_files/figure-html/unnamed-chunk-14-1.png" width="672" /></p>
+</div>
+</div>
+<div id="conclusion" class="section level2">
+<h2>Conclusion</h2>
+<p>Ainsi, sommes arrivé à la fin de ce tutoriel destiné à l’analyse et la visualisation des données Whatsapp.
+j’espère que ça per mettra au plus grand nombre d’analyser et visualiser leur donnée obtenue depuis Whatsapp (famille, groupe…).</p>
+<p>Si quelque chose vous freine ou vous pose problème dans les codes, indiquez le moi en commentaire, et j’essaierais de vous apporter une réponse.</p>
+<p>J’avoue que pour écrire ce tutoriel, je me suis inspéré de l’<a href="https://cosmoduende.medium.com/an%C3%A1lisis-de-chats-en-whataapp-parte-1-an%C3%A1lisis-de-texto-y-visualizaci%C3%B3n-de-datos-con-r-6d254c39029d">article</a> de <a href="https://cosmoduende.medium.com/">Saúl Buentello</a> que j’ai vraiment apprécié.</p>
+<p>Si cet tutoriel vous a plu ou vous a été utile, n’oubliez pas de le partager !.</p>
+</div>

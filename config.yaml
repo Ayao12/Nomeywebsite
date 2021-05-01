@@ -1,0 +1,86 @@
+theme: starter-academic
+title: Ayao Nomenyo
+baseurl: "http://ayaowebsite.rbind.io"
+copyright: '&copy; Ayao Nomenyo, {year}'
+enableGitInfo: no
+defaultContentLanguage: en
+hasCJKLanguage: no
+defaultContentLanguageInSubdir: no
+removePathAccents: yes
+summaryLength: 30
+paginate: 10
+enableEmoji: yes
+enableRobotsTXT: yes
+footnotereturnlinkcontents: <sup>^</sup>
+ignoreFiles:
+  - \\.ipynb$
+  - .ipynb_checkpoints$
+  - \\.Rmd$
+  - \\.Rmarkdown$
+  - _cache$
+  - static/blog/\\*_files/
+  - about\\.html
+  - index\\.html
+  - README
+  - "\\.Rmd$"
+  - "\\.Rmarkdown$"
+  - "\\.knit\\.md$"
+  - "\\.utf8\\.md$"
+permalinks:
+  authors: /author/:slug/
+  categories: /category/:slug/
+  publication_types: /publication-type/:slug/
+  tags: /tag/:slug/
+outputs:
+  home:
+    - HTML
+    - RSS
+    - JSON
+    - WebAppManifest
+  section:
+    - HTML
+    - RSS
+mediaTypes:
+  application/manifest+json:
+    suffixes: webmanifest
+outputFormats:
+  WebAppManifest:
+    mediaType: application/manifest+json
+    rel: manifest
+markup:
+  defaultMarkdownHandler: goldmark
+  goldmark:
+    renderer:
+      unsafe: yes
+  highlight:
+    codeFences: yes
+  tableOfContents:
+    endLevel: 3
+    startLevel: 2
+imaging:
+  anchor: smart
+  quality: 75
+  resampleFilter: lanczos
+taxonomies:
+  author: authors
+  category: categories
+  publication_type: publication_types
+  tag: tags
+related:
+  includeNewer: yes
+  indices:
+    - name: title
+      weight: 60.0
+    - name: summary
+      weight: 50.0
+    - name: tags
+      weight: 80.0
+    - name: categories
+      weight: 70.0
+    - name: authors
+      weight: 20.0
+  threshold: 80.0
+  toLower: yes
+module:
+  imports:
+    - path: github.com/wowchemy/wowchemy-hugo-modules/wowchemy
