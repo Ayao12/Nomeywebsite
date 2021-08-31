@@ -478,6 +478,16 @@ sommets représentent les articles et les règles sont représentées par
 les liaisons entre les articles à l’aide de flèches.</p>
 <pre class="r"><code>plot(rules_sup1_conf50, method = &quot;graph&quot;, control = list(layout=igraph::in_circle())
      , main = &quot;Graphe des règles d&#39;association&quot;)</code></pre>
+<pre><code>## Warning: Unknown control parameters: main</code></pre>
+<pre><code>## Available control parameters (with default values):
+## layout    =  list(fun = function (graph, dim = 2, ...)  {     if (&quot;layout&quot; %in% graph_attr_names(graph)) {         lay &lt;- graph_attr(graph, &quot;layout&quot;)         if (is.function(lay)) {             lay(graph, ...)         }         else {             lay         }     }     else if (all(c(&quot;x&quot;, &quot;y&quot;) %in% vertex_attr_names(graph))) {         if (&quot;z&quot; %in% vertex_attr_names(graph)) {             cbind(V(graph)$x, V(graph)$y, V(graph)$z)         }         else {             cbind(V(graph)$x, V(graph)$y)         }     }     else if (vcount(graph) &lt; 1000) {         layout_with_fr(graph, dim = dim, ...)     }     else {         layout_with_drl(graph, dim = dim, ...)     } }, call_str = c(&quot;layout_nicely(&lt;graph&gt;, expr = {&quot;, &quot;    if (&lt;graph&gt;, length(a &lt;- commandArgs(TRUE)) != 2) &quot;, &quot;        stop(&lt;graph&gt;, \&quot;The number of arguments passed to Rscript should be 2.\&quot;)&quot;, &quot;    x = readRDS(&lt;graph&gt;, a[1])&quot;, &quot;    f = x[[1]]&quot;, &quot;    if (&lt;graph&gt;, is.character(f)) &quot;, &quot;        f = eval(&lt;graph&gt;, parse(text = f), envir = globalenv())&quot;, &quot;    r = do.call(&lt;graph&gt;, f, x[[2]], envir = globalenv())&quot;, &quot;    saveRDS(&lt;graph&gt;, r, a[2])&quot;, &quot;})&quot;), args = list())
+## edges     =  &lt;environment&gt;
+## nodes     =  &lt;environment&gt;
+## nodetext  =  &lt;environment&gt;
+## colors    =  c(&quot;#EE0000FF&quot;, &quot;#EEEEEEFF&quot;)
+## engine    =  ggplot2
+## max   =  100
+## verbose   =  FALSE</code></pre>
 <p><img src="{{< blogdown/postref >}}index.en_files/figure-html/unnamed-chunk-13-1.png" width="672" /></p>
 <p>Il est aussi possible de représenter les règles sous une forme
 matricielle groupée. Le support et le lift sont représentés par la

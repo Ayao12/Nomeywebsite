@@ -21,7 +21,11 @@
     debug = true
 
 
-
+[[redirects]]
+  from = "http://trang.rbind.io/*"
+  to = "https://trang.rbind.io/:splat"
+  status = 301
+  force = true
 
 
 
